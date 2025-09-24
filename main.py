@@ -31,8 +31,8 @@ def get_signals():
         results = {}
         
         for pair in pairs:
-            # Fetch real-time data
-            data = data_fetcher.get_forex_data(pair, period='1d', interval='1h')
+            # Fetch real-time data (get more history for technical analysis)
+            data = data_fetcher.get_forex_data(pair, period='60d', interval='1h')
             
             if data is not None and not data.empty:
                 # Analyze with ensemble models
