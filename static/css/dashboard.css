@@ -1,0 +1,195 @@
+/* Forex Trading Dashboard Styles */
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.container-fluid {
+    padding: 20px;
+}
+
+.header-section {
+    margin-bottom: 20px;
+}
+
+.header-section .card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+}
+
+.header-section h1 {
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.signal-card {
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.signal-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.signal-card.bg-success {
+    border-left: 5px solid #28a745;
+}
+
+.signal-card.bg-danger {
+    border-left: 5px solid #dc3545;
+}
+
+.signal-card.bg-warning {
+    border-left: 5px solid #ffc107;
+}
+
+.card-header {
+    border-bottom: 2px solid rgba(0,0,0,0.1);
+    font-weight: 600;
+}
+
+.price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.progress {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width 0.6s ease;
+}
+
+.model-votes .badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.table-sm td {
+    padding: 0.3rem;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    font-size: 0.9rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 10px;
+    }
+    
+    .price {
+        font-size: 1.2rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table-sm {
+        font-size: 0.8rem;
+    }
+    
+    .model-votes .badge {
+        font-size: 0.65rem;
+        margin-bottom: 0.15rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .header-section h1 {
+        font-size: 1.5rem;
+    }
+    
+    .price {
+        font-size: 1.1rem;
+    }
+    
+    .progress {
+        height: 15px !important;
+    }
+    
+    .progress-bar {
+        font-size: 0.7rem;
+    }
+    
+    .btn-primary {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Animation for loading states */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Signal strength indicators */
+.signal-strength-high {
+    background: linear-gradient(45deg, #28a745, #20c997);
+}
+
+.signal-strength-medium {
+    background: linear-gradient(45deg, #ffc107, #fd7e14);
+}
+
+.signal-strength-low {
+    background: linear-gradient(45deg, #6c757d, #495057);
+}
+
+/* Custom scrollbar for mobile */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
