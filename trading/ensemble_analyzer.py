@@ -315,8 +315,8 @@ class EnsembleAnalyzer:
                 'resistance': round(resistance, 5),
                 'distance_to_support': round(distance_to_support, 2),
                 'distance_to_resistance': round(distance_to_resistance, 2),
-                'near_key_level': near_resistance or near_support,
-                'doji_pattern': is_doji,
+                'near_key_level': bool(near_resistance or near_support),
+                'doji_pattern': bool(is_doji),
                 'price_position': 'Near Resistance' if near_resistance else 'Near Support' if near_support else 'Clear'
             }
             
