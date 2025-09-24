@@ -175,6 +175,180 @@ body {
     background: linear-gradient(45deg, #6c757d, #495057);
 }
 
+/* Enhanced Signal Cards */
+.enhanced-summary {
+    border-left: 4px solid #007bff;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.enhanced-summary p {
+    margin-bottom: 0.5rem;
+}
+
+/* Tab styling for signal analysis */
+.nav-tabs .nav-link {
+    border: none;
+    color: #6c757d;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+}
+
+.nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 5px;
+}
+
+.tab-content {
+    min-height: 200px;
+    padding: 1rem;
+    background: rgba(0,0,0,0.02);
+    border-radius: 5px;
+}
+
+/* Performance metrics */
+.performance-card {
+    transition: transform 0.3s ease;
+}
+
+.performance-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Market regime indicators */
+.regime-trending {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.regime-ranging {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.regime-volatile {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* Confidence levels */
+.confidence-confirmed {
+    background: linear-gradient(45deg, #28a745, #20c997) !important;
+}
+
+.confidence-likely {
+    background: linear-gradient(45deg, #17a2b8, #6f42c1) !important;
+}
+
+.confidence-possible {
+    background: linear-gradient(45deg, #ffc107, #fd7e14) !important;
+}
+
+.confidence-weak {
+    background: linear-gradient(45deg, #6c757d, #495057) !important;
+}
+
+/* Timeframe consensus badges */
+.timeframe-signals .badge {
+    margin: 0.2rem;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+}
+
+/* Price action warnings */
+.price-action-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid #ffc107;
+    border-radius: 5px;
+    padding: 0.5rem;
+}
+
+/* ATR display */
+.atr-info {
+    background: rgba(23, 162, 184, 0.1);
+    border: 1px solid #17a2b8;
+    border-radius: 5px;
+    padding: 0.75rem;
+}
+
+/* Performance dashboard */
+#performanceSection .card {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border: none;
+}
+
+#performanceSection .card-body {
+    padding: 1.5rem;
+}
+
+#performanceSection h4 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+#performanceSection p {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 768px) {
+    .enhanced-summary {
+        font-size: 0.8rem;
+    }
+    
+    .nav-tabs .nav-link {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+    }
+    
+    .tab-content {
+        padding: 0.75rem;
+        min-height: 150px;
+    }
+    
+    #performanceSection h4 {
+        font-size: 1.5rem;
+    }
+    
+    .timeframe-signals .badge {
+        font-size: 0.65rem;
+        padding: 0.25rem 0.4rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .enhanced-summary {
+        font-size: 0.75rem;
+        padding: 0.75rem;
+    }
+    
+    .nav-tabs .nav-link {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.8rem;
+    }
+    
+    .tab-content {
+        padding: 0.5rem;
+        min-height: 120px;
+    }
+    
+    #performanceSection .card-body {
+        padding: 1rem;
+    }
+    
+    #performanceSection h4 {
+        font-size: 1.25rem;
+    }
+    
+    .table-sm {
+        font-size: 0.75rem;
+    }
+}
+
 /* Custom scrollbar for mobile */
 ::-webkit-scrollbar {
     width: 8px;

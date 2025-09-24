@@ -67,6 +67,22 @@
             </div>
         </div>
 
+        <!-- Performance Dashboard -->
+        <div class="row mt-4" id="performanceSection" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-bar"></i> Performance Tracking Dashboard</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="performanceMetrics">
+                            <!-- Performance metrics will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Last Updated -->
         <div class="row mt-3">
             <div class="col-12">
@@ -100,6 +116,7 @@
                 
                 if (data.success) {
                     displaySignals(data.data);
+                    displayPerformance(data.performance);
                     document.getElementById('lastUpdated').textContent = 
                         `Last updated: ${new Date(data.timestamp).toLocaleString()}`;
                 } else {
@@ -107,6 +124,58 @@
                 }
             } catch (error) {
                 displayError('Failed to fetch signals: ' + error.message);
+            }
+        }
+
+        function displayPerformance(performance) {
+            if (!performance || !performance.summary) return;
+            
+            const performanceSection = document.getElementById('performanceSection');
+            const performanceMetrics = document.getElementById('performanceMetrics');
+            
+            const summary = performance.summary;
+            const streak = performance.streak_info;
+            
+            performanceMetrics.innerHTML = `
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h4>${summary.win_rate}%</h4>
+                            <p>Win Rate</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h4>${summary.profit_factor}</h4>
+                            <p>Profit Factor</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card ${streak.current >= 0 ? 'bg-success' : 'bg-danger'} text-white">
+                        <div class="card-body text-center">
+                            <h4>${streak.current >= 0 ? '+' : ''}${streak.current}</h4>
+                            <p>Current Streak</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-secondary text-white">
+                        <div class="card-body text-center">
+                            <h4>${summary.total_trades}</h4>
+                            <p>Total Trades</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 mt-3">
+                    <h6>📈 Performance: ${summary.win_rate}% win rate | Streak: ${streak.current >= 0 ? '+' : ''}${streak.current}</h6>
+                </div>
+            `;
+            
+            if (summary.total_trades > 0) {
+                performanceSection.style.display = 'block';
             }
         }
 
@@ -129,84 +198,177 @@
         function createSignalCard(pair, data) {
             const signalClass = getSignalClass(data.signal);
             const signalIcon = getSignalIcon(data.signal);
+            const confidenceClass = getConfidenceClass(data.confidence?.status || 'WEAK');
+            const regimeIcon = getRegimeIcon(data.market_regime?.regime || 'UNKNOWN');
             
             return `
                 <div class="col-md-6 mb-4">
                     <div class="card signal-card ${signalClass}">
                         <div class="card-header">
                             <h5 class="mb-0">
-                                <i class="fas fa-exchange-alt"></i> ${pair}
-                                <span class="float-end">
-                                    <span class="badge ${signalClass}">${data.signal} ${signalIcon}</span>
-                                </span>
+                                🎯 ${pair}: ${data.signal} 
+                                <span class="badge ${confidenceClass} ms-2">(${data.confidence?.status || 'WEAK'})</span>
                             </h5>
                         </div>
                         <div class="card-body">
-                            <div class="row">
-                                <div class="col-6">
-                                    <h6>Current Price</h6>
-                                    <p class="price">${data.current_price}</p>
-                                </div>
-                                <div class="col-6">
-                                    <h6>Signal Probabilities</h6>
-                                    <div class="progress mb-1" style="height: 20px;">
-                                        <div class="progress-bar bg-success" style="width: ${data.buy_probability}%">
-                                            Buy ${data.buy_probability}%
-                                        </div>
-                                        <div class="progress-bar bg-danger" style="width: ${data.sell_probability}%">
-                                            Sell ${data.sell_probability}%
-                                        </div>
+                            <!-- Enhanced Signal Summary -->
+                            <div class="enhanced-summary mb-3 p-3 rounded" style="background: rgba(0,0,0,0.05);">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <p class="mb-1"><strong>📊 Confidence:</strong> ${data.confidence?.percentage || 0}% (${Object.keys(data.model_votes).length}/5 models${data.timeframe_consensus ? ' + ' + data.timeframe_consensus.consensus + ' consensus' : ''})</p>
+                                        <p class="mb-1"><strong>🏛️ Market Regime:</strong> ${regimeIcon} ${data.market_regime?.regime || 'UNKNOWN'} (ADX: ${data.market_regime?.adx || 0})</p>
+                                        <p class="mb-1"><strong>💰 Dynamic SL:</strong> ${getSlTpDisplay(data, 'sl')} | <strong>TP:</strong> ${getSlTpDisplay(data, 'tp')} ${data.atr_value ? '(ATR: ' + data.atr_value.value + ')' : ''}</p>
+                                        <p class="mb-1"><strong>⚡ Risk:</strong> ${data.risk_percent || 1.5}% | <strong>Position:</strong> ${data.position_size?.micro_lots || 0} micro lots</p>
+                                        <p class="mb-0"><strong>🎯 Price Action:</strong> ${data.price_action?.price_position || 'Unknown'}</p>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <h6>Risk Management</h6>
-                                    <table class="table table-sm">
-                                        <tr>
-                                            <td>Stop Loss:</td>
-                                            <td>
-                                                Buy: ${data.stop_loss.buy}<br>
-                                                Sell: ${data.stop_loss.sell}
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>Take Profit:</td>
-                                            <td>
-                                                Buy: ${data.take_profit.buy}<br>
-                                                Sell: ${data.take_profit.sell}
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6>Position Sizing</h6>
-                                    <table class="table table-sm">
-                                        <tr>
-                                            <td>Micro Lots:</td>
-                                            <td>${data.position_size.micro_lots}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Risk Amount:</td>
-                                            <td>$${data.risk_amount}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Units:</td>
-                                            <td>${data.position_size.units.toLocaleString()}</td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
+                            <!-- Detailed Analysis Tabs -->
+                            <ul class="nav nav-tabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#analysis-${pair.replace('/', '')}" type="button">Analysis</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#risk-${pair.replace('/', '')}" type="button">Risk Mgmt</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#timeframes-${pair.replace('/', '')}" type="button">Timeframes</button>
+                                </li>
+                            </ul>
                             
-                            <div class="mt-3">
-                                <h6>Model Votes</h6>
-                                <div class="model-votes">
-                                    ${Object.entries(data.model_votes).map(([model, vote]) => 
-                                        `<span class="badge ${getVoteBadgeClass(vote)} me-1">
-                                            ${formatModelName(model)}: ${getVoteText(vote)}
-                                        </span>`
-                                    ).join('')}
+                            <div class="tab-content mt-3">
+                                <!-- Analysis Tab -->
+                                <div class="tab-pane fade show active" id="analysis-${pair.replace('/', '')}" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <h6>Current Price: <span class="price">${data.current_price}</span></h6>
+                                            <div class="progress mb-2" style="height: 25px;">
+                                                <div class="progress-bar bg-success" style="width: ${data.buy_probability}%">
+                                                    Buy ${data.buy_probability}%
+                                                </div>
+                                                <div class="progress-bar bg-danger" style="width: ${data.sell_probability}%">
+                                                    Sell ${data.sell_probability}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <h6>Market Regime</h6>
+                                            <p><strong>Type:</strong> ${data.market_regime?.regime || 'Unknown'}</p>
+                                            <p><strong>ADX:</strong> ${data.market_regime?.adx || 0} (${data.market_regime?.trend_strength || 'Unknown'})</p>
+                                            <p><strong>Volatility:</strong> ${data.market_regime?.band_width || 0}%</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <h6>Model Votes</h6>
+                                        <div class="model-votes">
+                                            ${Object.entries(data.model_votes).map(([model, vote]) => 
+                                                `<span class="badge ${getVoteBadgeClass(vote)} me-1 mb-1">
+                                                    ${formatModelName(model)}: ${getVoteText(vote)}
+                                                </span>`
+                                            ).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Risk Management Tab -->
+                                <div class="tab-pane fade" id="risk-${pair.replace('/', '')}" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Dynamic Levels ${data.calculation_method ? '(' + data.calculation_method + ')' : ''}</h6>
+                                            <table class="table table-sm">
+                                                <tr>
+                                                    <td><strong>Stop Loss:</strong></td>
+                                                    <td>
+                                                        Buy: <span class="text-danger">${data.stop_loss?.buy}</span><br>
+                                                        Sell: <span class="text-danger">${data.stop_loss?.sell}</span><br>
+                                                        <small class="text-muted">(${data.stop_loss?.pips} pips)</small>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Take Profit:</strong></td>
+                                                    <td>
+                                                        Buy: <span class="text-success">${data.take_profit?.buy}</span><br>
+                                                        Sell: <span class="text-success">${data.take_profit?.sell}</span><br>
+                                                        <small class="text-muted">(${data.take_profit?.pips} pips)</small>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Position Sizing</h6>
+                                            <table class="table table-sm">
+                                                <tr>
+                                                    <td>Micro Lots:</td>
+                                                    <td><strong>${data.position_size?.micro_lots}</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Risk Amount:</td>
+                                                    <td><strong>$${data.risk_amount}</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Units:</td>
+                                                    <td>${data.position_size?.units?.toLocaleString()}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>R:R Ratio:</td>
+                                                    <td>${data.reward_risk_ratio || 'N/A'}:1</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    ${data.atr_value ? `
+                                    <div class="mt-2">
+                                        <h6>ATR Information</h6>
+                                        <p><strong>ATR Value:</strong> ${data.atr_value.value}</p>
+                                        <p><strong>SL Distance:</strong> ${data.atr_value.value} × 1.5 = ${(data.atr_value.value * 1.5).toFixed(5)}</p>
+                                        <p><strong>TP Distance:</strong> ${data.atr_value.value} × 3.0 = ${(data.atr_value.value * 3.0).toFixed(5)}</p>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                                
+                                <!-- Timeframes Tab -->
+                                <div class="tab-pane fade" id="timeframes-${pair.replace('/', '')}" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Multi-Timeframe Consensus</h6>
+                                            <p><strong>Overall:</strong> <span class="badge ${getSignalClass(data.timeframe_consensus?.consensus || 'NEUTRAL')}">${data.timeframe_consensus?.consensus || 'NEUTRAL'}</span></p>
+                                            <p><strong>Agreement:</strong> ${data.timeframe_consensus?.agreement || 0}%</p>
+                                            
+                                            <h6 class="mt-3">Timeframe Signals</h6>
+                                            <div class="timeframe-signals">
+                                                ${data.timeframe_consensus?.timeframe_signals ? 
+                                                    Object.entries(data.timeframe_consensus.timeframe_signals).map(([tf, signal]) =>
+                                                        `<span class="badge ${getSignalClass(signal)} me-1 mb-1">${tf}: ${signal}</span>`
+                                                    ).join('') 
+                                                    : '<span class="text-muted">No timeframe data</span>'
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Price Action Analysis</h6>
+                                            <table class="table table-sm">
+                                                <tr>
+                                                    <td>Support:</td>
+                                                    <td>${data.price_action?.support || 'N/A'}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Resistance:</td>
+                                                    <td>${data.price_action?.resistance || 'N/A'}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Position:</td>
+                                                    <td><span class="${data.price_action?.near_key_level ? 'text-warning' : 'text-success'}">${data.price_action?.price_position || 'Unknown'}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Doji Pattern:</td>
+                                                    <td>${data.price_action?.doji_pattern ? '⚠️ Yes' : '✅ No'}</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -278,6 +440,37 @@
 
         function formatModelName(model) {
             return model.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function getConfidenceClass(status) {
+            switch(status) {
+                case 'CONFIRMED': return 'bg-success';
+                case 'LIKELY': return 'bg-info';
+                case 'POSSIBLE': return 'bg-warning';
+                default: return 'bg-secondary';
+            }
+        }
+
+        function getRegimeIcon(regime) {
+            switch(regime) {
+                case 'TRENDING': return '📈';
+                case 'RANGING': return '↔️';
+                case 'VOLATILE': return '🌊';
+                default: return '❓';
+            }
+        }
+
+        function getSlTpDisplay(data, type) {
+            const levels = type === 'sl' ? data.stop_loss : data.take_profit;
+            if (!levels) return 'N/A';
+            
+            if (data.signal === 'BUY') {
+                return levels.buy;
+            } else if (data.signal === 'SELL') {
+                return levels.sell;
+            } else {
+                return `${levels.buy}/${levels.sell}`;
+            }
         }
     </script>
 </body>
