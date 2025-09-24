@@ -63,6 +63,43 @@ class ForexDataFetcher:
             logger.error(f"Error fetching data for {pair}: {str(e)}")
             return None
     
+    def get_multi_timeframe_data(self, pair):
+        """
+        Fetch multi-timeframe data for comprehensive analysis
+        
+        Args:
+            pair (str): Currency pair (e.g., 'EURUSD=X', 'USDJPY=X')
+        
+        Returns:
+            dict: Data for different timeframes
+        """
+        try:
+            timeframes = {
+                '1H': ('60d', '1h'),    # 1-hour data for 60 days
+                '4H': ('180d', '4h'),   # 4-hour data for 180 days  
+                'Daily': ('720d', '1d')  # Daily data for 720 days (2 years)
+            }
+            
+            multi_data = {}
+            
+            for tf_name, (period, interval) in timeframes.items():
+                try:
+                    data = self.get_forex_data(pair, period=period, interval=interval)
+                    if data is not None and not data.empty:
+                        multi_data[tf_name] = data
+                    else:
+                        multi_data[tf_name] = None
+                        logger.warning(f"No {tf_name} data for {pair}")
+                except Exception as e:
+                    logger.warning(f"Error fetching {tf_name} data for {pair}: {str(e)}")
+                    multi_data[tf_name] = None
+            
+            return multi_data
+            
+        except Exception as e:
+            logger.error(f"Error fetching multi-timeframe data for {pair}: {str(e)}")
+            return {}
+    
     def get_current_price(self, pair):
         """Get current price for a currency pair"""
         try:

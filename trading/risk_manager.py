@@ -37,39 +37,55 @@ class RiskManager:
             'USDCHF': 40
         }
     
-    def calculate_risk_levels(self, pair, current_price, account_size=10000.0, risk_percent=1.5):
+    def calculate_risk_levels(self, pair, current_price, account_size=10000.0, risk_percent=1.5, atr_data=None):
         """
-        Calculate stop loss, take profit, and position size
+        Calculate stop loss, take profit, and position size using ATR or fallback to fixed pips
         
         Args:
             pair (str): Currency pair (e.g., 'EURUSD')
             current_price (float): Current market price
             account_size (float): Account balance in USD
             risk_percent (float): Risk percentage per trade (1-2%)
+            atr_data (dict): ATR data from ensemble analysis (optional)
         
         Returns:
-            dict: Risk management calculations
+            dict: Enhanced risk management calculations
         """
         try:
-            # Get risk parameters for the pair
-            sl_pips = self.stop_loss_pips.get(pair, 20)
-            tp_pips = self.take_profit_pips.get(pair, 40)
-            pip_value = self.pip_values.get(pair, 10.0)
-            
             # Calculate pip size based on currency pair
             if 'JPY' in pair:
                 pip_size = 0.01  # For JPY pairs, 1 pip = 0.01
             else:
                 pip_size = 0.0001  # For other pairs, 1 pip = 0.0001
             
+            # Use ATR-based calculations if available, otherwise fallback to fixed pips
+            if atr_data and atr_data.get('value', 0) > 0:
+                # ATR-based dynamic levels
+                atr_value = atr_data['value']
+                sl_distance = atr_value * 1.5  # 1.5x ATR for stop loss
+                tp_distance = atr_value * 3.0  # 3.0x ATR for take profit
+                
+                # Convert ATR distances to pips for position sizing
+                sl_pips = sl_distance / pip_size
+                tp_pips = tp_distance / pip_size
+                
+                calculation_method = 'ATR-based'
+            else:
+                # Fallback to fixed pip calculations
+                sl_pips = self.stop_loss_pips.get(pair, 20)
+                tp_pips = self.take_profit_pips.get(pair, 40)
+                sl_distance = sl_pips * pip_size
+                tp_distance = tp_pips * pip_size
+                
+                calculation_method = 'Fixed pips'
+            
+            # Get pip value for position sizing
+            pip_value = self.pip_values.get(pair, 10.0)
+            
             # Calculate risk amount
             risk_amount = account_size * (risk_percent / 100)
             
             # Calculate position size based on risk
-            # Position Size = Risk Amount / (Stop Loss Pips * Pip Value * Lot Size)
-            # For micro lots (0.01), we need to adjust the calculation
-            
-            risk_per_pip = sl_pips * pip_value * 0.01  # For micro lots
             position_size_lots = risk_amount / (sl_pips * pip_value)
             
             # Convert to micro lots for practical trading
@@ -79,30 +95,24 @@ class RiskManager:
             # Calculate actual risk with position size
             actual_risk = (micro_lots / 100) * sl_pips * pip_value
             
-            # Calculate stop loss and take profit prices
-            if pair.startswith('USD'):
-                # For USD/XXX pairs (like USD/JPY)
-                stop_loss_buy = current_price - (sl_pips * pip_size)
-                stop_loss_sell = current_price + (sl_pips * pip_size)
-                take_profit_buy = current_price + (tp_pips * pip_size)
-                take_profit_sell = current_price - (tp_pips * pip_size)
-            else:
-                # For XXX/USD pairs (like EUR/USD)
-                stop_loss_buy = current_price - (sl_pips * pip_size)
-                stop_loss_sell = current_price + (sl_pips * pip_size)
-                take_profit_buy = current_price + (tp_pips * pip_size)
-                take_profit_sell = current_price - (tp_pips * pip_size)
+            # Calculate stop loss and take profit prices using actual distances
+            stop_loss_buy = round(current_price - sl_distance, 5)
+            stop_loss_sell = round(current_price + sl_distance, 5)
+            take_profit_buy = round(current_price + tp_distance, 5)
+            take_profit_sell = round(current_price - tp_distance, 5)
             
             return {
                 'stop_loss': {
-                    'buy': round(stop_loss_buy, 5),
-                    'sell': round(stop_loss_sell, 5),
-                    'pips': sl_pips
+                    'buy': stop_loss_buy,
+                    'sell': stop_loss_sell,
+                    'pips': round(sl_pips, 1),
+                    'distance': round(sl_distance, 5)
                 },
                 'take_profit': {
-                    'buy': round(take_profit_buy, 5),
-                    'sell': round(take_profit_sell, 5),
-                    'pips': tp_pips
+                    'buy': take_profit_buy,
+                    'sell': take_profit_sell,
+                    'pips': round(tp_pips, 1),
+                    'distance': round(tp_distance, 5)
                 },
                 'position_size': {
                     'micro_lots': micro_lots,
@@ -111,9 +121,11 @@ class RiskManager:
                 },
                 'risk_amount': round(actual_risk, 2),
                 'risk_percent': round((actual_risk / account_size) * 100, 2),
-                'reward_risk_ratio': round(tp_pips / sl_pips, 2),
+                'reward_risk_ratio': round(tp_pips / sl_pips, 2) if sl_pips > 0 else 2.0,
                 'pip_value': pip_value,
-                'pip_size': pip_size
+                'pip_size': pip_size,
+                'calculation_method': calculation_method,
+                'atr_used': atr_data is not None and atr_data.get('value', 0) > 0
             }
             
         except Exception as e:
