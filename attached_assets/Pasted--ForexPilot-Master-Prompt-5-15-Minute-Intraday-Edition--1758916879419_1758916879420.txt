@@ -1,0 +1,86 @@
+"""
+ForexPilot Master Prompt (5–15 Minute Intraday Edition)
+=======================================================
+
+Objective:
+Upgrade ForexPilot into an institutional-grade intraday trading system optimized
+for 5m–15m timeframes, combining the existing ensemble + dashboard with advanced
+quantitative finance methods to maximize accuracy, win rate, and risk-adjusted returns.
+
+Existing System (to preserve and adapt):
+----------------------------------------
+- Flask web dashboard with real-time EUR/USD and USD/JPY signals
+- 5-model ensemble: SMA crossover, RSI, MACD, Bollinger Bands, Momentum
+- Ensemble voting with 60% threshold for BUY/SELL, else HOLD
+- Risk management: SL = 20 pips (EUR/USD), 25 pips (USD/JPY); TP = 2:1 ratio
+- Position sizing: 1–2% account risk, micro lot calculations
+- Account size input for personalized risk
+- Backtesting module with confidence distribution and regime analysis
+- Mobile-responsive dashboard with TP/SL and probability display
+
+High-Accuracy Upgrades (to add):
+--------------------------------
+1. Sharpe/Sortino-Weighted Ensemble
+   - Weight each model by rolling Sharpe/Sortino ratio on 5m–15m data.
+   - Final signal = sign(Σ w_i * s_i).
+
+2. Probability Calibration
+   - Train logistic regression on 5m–15m triple-barrier labels.
+   - Calibrate probabilities (Platt/Isotonic).
+   - Optimize thresholds via ROC/Youden’s J.
+
+3. Dynamic Confidence Thresholds (Regime-Aware)
+   - Use ADX (and optional HMM) on 5m–15m bars:
+       ADX > 40 → threshold = 0.8
+       ADX 25–40 → threshold = 0.6
+       ADX < 20 → threshold = 0.4
+
+4. Expected Value (EV) Filter
+   - EV = (p * avg_win) - ((1 - p) * avg_loss), computed on intraday trades.
+   - Only allow trades where EV > 0.
+
+5. Fractional Kelly Sizing with Volatility Cap
+   - f* = (b * p - (1 - p)) / b, with b = avg_win / avg_loss.
+   - Use 0.25 * f* for position sizing.
+   - Cap by ATR(14) or GARCH forecast volatility on 5m–15m bars.
+
+6. Meta-Labeling with Triple-Barrier Outcomes
+   - Label intraday signals with upper/lower/timeout barriers.
+   - Train secondary classifier (logistic/XGBoost) to decide act/not-act.
+   - Only execute trades when meta-label = 1.
+
+Intraday Risk Management Adjustments:
+-------------------------------------
+- SL/TP scaled down for 5m–15m:
+    EUR/USD: SL ~5–10 pips, TP ~10–20 pips
+    USD/JPY: SL ~7–12 pips, TP ~14–24 pips
+- Position sizing: risk 0.5–1% per trade (higher frequency requires smaller risk).
+- VaR/CVaR per trade and per session; reject trades breaching budget.
+- Track rolling Max Drawdown and Calmar ratio intraday.
+
+Backtesting & Dashboard Enhancements:
+-------------------------------------
+- Walk-forward backtests on 5m and 15m data separately.
+- Compute Sharpe, Sortino, EV, win rate per model and per regime.
+- Flask dashboard (/backtest) must display:
+    - Confidence distribution (60%, 80%, 100%)
+    - Win rate by confidence bucket
+    - Regime-specific performance (trend vs range)
+    - Risk metrics (Sharpe, Sortino, Calmar, VaR, CVaR)
+    - Intraday trade frequency and expectancy
+
+Key Principle:
+--------------
+Every trade must pass BOTH:
+  - Probability/threshold checks (regime-aware)
+  - EV > 0 filter
+Meta-labeling acts as the final gatekeeper for execution.
+
+Deliverables:
+-------------
+- Updated ensemble_analyzer.py with intraday Sharpe weighting, calibration, EV/Kelly filters, and regime thresholds.
+- Backtest module tuned for 5m–15m data.
+- Flask routes:
+    /signal → live intraday signals with EV, Kelly size, and risk metrics
+    /backtest → dashboard with intraday performance analytics
+"""
