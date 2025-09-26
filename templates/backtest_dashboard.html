@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Institutional Backtest Dashboard - ForexPilot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet">
+    <style>
+        .metric-card {
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+        .confidence-bar {
+            height: 20px;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
+        }
+        .regime-badge {
+            font-size: 0.9em;
+            padding: 0.3rem 0.6rem;
+        }
+        .backtest-controls {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .results-section {
+            margin-top: 20px;
+        }
+        .loading-spinner {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row header-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h1 class="text-center mb-3">
+                            <i class="fas fa-chart-area text-primary"></i>
+                            Institutional Backtest Analytics
+                        </h1>
+                        <p class="text-center text-muted">Walk-Forward Analysis with Triple-Barrier Labeling</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backtest Controls -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="backtest-controls">
+                    <h5><i class="fas fa-cogs"></i> Backtest Configuration</h5>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <label for="backtestPair" class="form-label">Currency Pair</label>
+                            <select class="form-select" id="backtestPair">
+                                <option value="EURUSD">EUR/USD</option>
+                                <option value="USDJPY">USD/JPY</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="backtestTimeframe" class="form-label">Timeframe</label>
+                            <select class="form-select" id="backtestTimeframe">
+                                <option value="5m">5 Minutes</option>
+                                <option value="15m" selected>15 Minutes</option>
+                                <option value="1h">1 Hour</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="backtestAccountSize" class="form-label">Account Size ($)</label>
+                            <input type="number" class="form-control" id="backtestAccountSize" value="10000" min="1000" step="1000">
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-light mt-4" onclick="runBacktest()">
+                                <i class="fas fa-play"></i> Run Backtest
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div class="row mt-4 loading-spinner" id="loadingIndicator">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Running backtest...</span>
+                        </div>
+                        <p class="mt-3">Running institutional-grade backtest analysis...</p>
+                        <small class="text-muted">This may take a few moments to complete walk-forward analysis</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Overview -->
+        <div class="row mt-4 results-section" id="performanceOverview" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-trophy"></i> Performance Overview</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="performanceMetrics">
+                            <!-- Performance metrics will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confidence Distribution -->
+        <div class="row mt-4 results-section" id="confidenceSection" style="display: none;">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-percent"></i> Confidence Distribution</h5>
+                    </div>
+                    <div class="card-body" id="confidenceAnalysis">
+                        <!-- Confidence analysis will be populated here -->
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-pie"></i> Regime Performance</h5>
+                    </div>
+                    <div class="card-body" id="regimeAnalysis">
+                        <!-- Regime analysis will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Metrics -->
+        <div class="row mt-4 results-section" id="riskSection" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-shield-alt"></i> Risk Metrics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="riskMetrics">
+                            <!-- Risk metrics will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Institutional Features Analysis -->
+        <div class="row mt-4 results-section" id="institutionalSection" style="display: none;">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-brain"></i> Expected Value Analysis</h5>
+                    </div>
+                    <div class="card-body" id="evAnalysis">
+                        <!-- EV analysis will be populated here -->
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-filter"></i> Meta-Labeling Effectiveness</h5>
+                    </div>
+                    <div class="card-body" id="metaAnalysis">
+                        <!-- Meta-labeling analysis will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="row mt-4 results-section" id="recommendationsSection" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-lightbulb"></i> Analysis Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Recommendation</h6>
+                                <div id="recommendation" class="alert alert-info">
+                                    Run a backtest to see recommendations
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Key Insights</h6>
+                                <ul id="keyInsights" class="list-unstyled">
+                                    <li class="text-muted">No insights available yet</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Back to Main Dashboard -->
+        <div class="row mt-4 mb-4">
+            <div class="col-12 text-center">
+                <a href="/" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Live Trading Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        async function runBacktest() {
+            const pair = document.getElementById('backtestPair').value;
+            const timeframe = document.getElementById('backtestTimeframe').value;
+            const accountSize = document.getElementById('backtestAccountSize').value;
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+            hideResultsSections();
+            
+            try {
+                const response = await fetch(`/api/backtest?pair=${pair}&timeframe=${timeframe}&account_size=${accountSize}`);
+                const data = await response.json();
+                
+                // Hide loading indicator
+                document.getElementById('loadingIndicator').style.display = 'none';
+                
+                if (data.success) {
+                    displayBacktestResults(data.backtest_results);
+                } else {
+                    displayError(data.error || 'Backtest failed');
+                }
+            } catch (error) {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                displayError('Failed to run backtest: ' + error.message);
+            }
+        }
+        
+        function displayBacktestResults(results) {
+            // Show results sections
+            showResultsSections();
+            
+            // Display performance overview
+            displayPerformanceOverview(results.performance_metrics);
+            
+            // Display confidence distribution
+            displayConfidenceDistribution(results.confidence_distribution);
+            
+            // Display regime analysis
+            displayRegimeAnalysis(results.regime_performance);
+            
+            // Display risk metrics
+            displayRiskMetrics(results.risk_metrics);
+            
+            // Display institutional features
+            displayInstitutionalFeatures(results);
+            
+            // Display recommendations
+            displayRecommendations(results.summary);
+        }
+        
+        function displayPerformanceOverview(metrics) {
+            const container = document.getElementById('performanceMetrics');
+            
+            container.innerHTML = `
+                <div class="col-md-3">
+                    <div class="metric-card card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h4>${metrics.win_rate || 0}%</h4>
+                            <p>Win Rate</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h4>${metrics.profit_factor || 0}</h4>
+                            <p>Profit Factor</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h4>${metrics.sharpe_ratio || 0}</h4>
+                            <p>Sharpe Ratio</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card card bg-warning text-dark">
+                        <div class="card-body text-center">
+                            <h4>${metrics.trades || 0}</h4>
+                            <p>Total Trades</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function displayConfidenceDistribution(distribution) {
+            const container = document.getElementById('confidenceAnalysis');
+            
+            if (!distribution || Object.keys(distribution).length === 0) {
+                container.innerHTML = '<p class="text-muted">No confidence data available</p>';
+                return;
+            }
+            
+            let html = '';
+            Object.entries(distribution).forEach(([bucket, data]) => {
+                const winRateClass = data.win_rate >= 60 ? 'success' : data.win_rate >= 45 ? 'warning' : 'danger';
+                html += `
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span><strong>${bucket}:</strong> ${data.trades} trades</span>
+                            <span class="badge bg-${winRateClass}">${data.win_rate}% win rate</span>
+                        </div>
+                        <div class="confidence-bar mt-1">
+                            <div style="width: ${data.win_rate}%; height: 100%; background-color: ${data.win_rate >= 60 ? '#28a745' : data.win_rate >= 45 ? '#ffc107' : '#dc3545'}; border-radius: 10px;"></div>
+                        </div>
+                        <small class="text-muted">Avg P&L: $${data.avg_pnl}</small>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function displayRegimeAnalysis(regimes) {
+            const container = document.getElementById('regimeAnalysis');
+            
+            if (!regimes || Object.keys(regimes).length === 0) {
+                container.innerHTML = '<p class="text-muted">No regime data available</p>';
+                return;
+            }
+            
+            let html = '';
+            Object.entries(regimes).forEach(([regime, data]) => {
+                const badgeClass = regime === 'TRENDING' ? 'primary' : regime === 'RANGING' ? 'warning' : 'secondary';
+                html += `
+                    <div class="mb-2">
+                        <span class="regime-badge badge bg-${badgeClass}">${regime}</span>
+                        <div class="mt-1">
+                            <small>Trades: ${data.trades} | Win Rate: ${data.win_rate}% | Avg P&L: $${data.avg_pnl}</small>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function displayRiskMetrics(riskMetrics) {
+            const container = document.getElementById('riskMetrics');
+            
+            if (!riskMetrics || Object.keys(riskMetrics).length === 0) {
+                container.innerHTML = '<p class="text-muted">No risk metrics available</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="col-md-4">
+                    <div class="metric-card card">
+                        <div class="card-body text-center">
+                            <h5>${Math.abs(riskMetrics.max_drawdown * 100 || 0).toFixed(1)}%</h5>
+                            <p>Max Drawdown</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card card">
+                        <div class="card-body text-center">
+                            <h5>${riskMetrics.calmar_ratio || 0}</h5>
+                            <p>Calmar Ratio</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card card">
+                        <div class="card-body text-center">
+                            <h5>${Math.abs(riskMetrics.var_95 * 100 || 0).toFixed(1)}%</h5>
+                            <p>VaR (95%)</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function displayInstitutionalFeatures(results) {
+            // Expected Value Analysis
+            const evContainer = document.getElementById('evAnalysis');
+            const evData = results.expected_value_analysis;
+            
+            if (evData) {
+                evContainer.innerHTML = `
+                    <div class="row">
+                        <div class="col-6">
+                            <h6>Positive EV</h6>
+                            <p>Trades: ${evData.positive_ev?.trades || 0}</p>
+                            <p>Win Rate: ${evData.positive_ev?.win_rate || 0}%</p>
+                            <p>Avg P&L: $${evData.positive_ev?.avg_pnl || 0}</p>
+                        </div>
+                        <div class="col-6">
+                            <h6>Negative EV</h6>
+                            <p>Trades: ${evData.negative_ev?.trades || 0}</p>
+                            <p>Win Rate: ${evData.negative_ev?.win_rate || 0}%</p>
+                            <p>Avg P&L: $${evData.negative_ev?.avg_pnl || 0}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                evContainer.innerHTML = '<p class="text-muted">No EV analysis available</p>';
+            }
+            
+            // Meta-Labeling Analysis
+            const metaContainer = document.getElementById('metaAnalysis');
+            const metaData = results.meta_labeling_analysis;
+            
+            if (metaData) {
+                metaContainer.innerHTML = `
+                    <div class="row">
+                        <div class="col-6">
+                            <h6>Meta Approved</h6>
+                            <p>Trades: ${metaData.meta_approved?.trades || 0}</p>
+                            <p>Win Rate: ${metaData.meta_approved?.win_rate || 0}%</p>
+                        </div>
+                        <div class="col-6">
+                            <h6>Effectiveness</h6>
+                            <p>${metaData.effectiveness || 0}% approval rate</p>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: ${metaData.effectiveness || 0}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                metaContainer.innerHTML = '<p class="text-muted">No meta-labeling analysis available</p>';
+            }
+        }
+        
+        function displayRecommendations(summary) {
+            if (!summary) return;
+            
+            const recommendation = summary.recommendation || 'No recommendation available';
+            const insights = summary.key_insights || [];
+            
+            document.getElementById('recommendation').innerHTML = recommendation;
+            document.getElementById('recommendation').className = `alert ${getRecommendationClass(recommendation)}`;
+            
+            const insightsList = document.getElementById('keyInsights');
+            insightsList.innerHTML = insights.length > 0 
+                ? insights.map(insight => `<li><i class="fas fa-check text-success me-2"></i>${insight}</li>`).join('')
+                : '<li class="text-muted">No insights available</li>';
+        }
+        
+        function getRecommendationClass(recommendation) {
+            if (recommendation.includes('STRONG BUY')) return 'alert-success';
+            if (recommendation.includes('BUY')) return 'alert-info';
+            if (recommendation.includes('NEUTRAL')) return 'alert-warning';
+            if (recommendation.includes('AVOID')) return 'alert-danger';
+            return 'alert-secondary';
+        }
+        
+        function showResultsSections() {
+            document.getElementById('performanceOverview').style.display = 'block';
+            document.getElementById('confidenceSection').style.display = 'block';
+            document.getElementById('riskSection').style.display = 'block';
+            document.getElementById('institutionalSection').style.display = 'block';
+            document.getElementById('recommendationsSection').style.display = 'block';
+        }
+        
+        function hideResultsSections() {
+            document.getElementById('performanceOverview').style.display = 'none';
+            document.getElementById('confidenceSection').style.display = 'none';
+            document.getElementById('riskSection').style.display = 'none';
+            document.getElementById('institutionalSection').style.display = 'none';
+            document.getElementById('recommendationsSection').style.display = 'none';
+        }
+        
+        function displayError(error) {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            hideResultsSections();
+            
+            const container = document.getElementById('performanceOverview');
+            container.style.display = 'block';
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="card border-danger">
+                        <div class="card-body text-center">
+                            <i class="fas fa-exclamation-triangle text-danger fa-2x mb-3"></i>
+                            <h5 class="text-danger">Backtest Failed</h5>
+                            <p>${error}</p>
+                            <button class="btn btn-outline-danger" onclick="location.reload()">
+                                <i class="fas fa-retry"></i> Try Again
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

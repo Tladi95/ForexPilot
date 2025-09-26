@@ -74,10 +74,11 @@ class ForexDataFetcher:
             dict: Data for different timeframes
         """
         try:
+            # Intraday-focused timeframes for institutional analysis (5m-15m optimized)
             timeframes = {
-                '1H': ('60d', '1h'),    # 1-hour data for 60 days
-                '4H': ('180d', '4h'),   # 4-hour data for 180 days  
-                'Daily': ('720d', '1d')  # Daily data for 720 days (2 years)
+                '5M': ('7d', '5m'),     # 5-minute data for 7 days (high frequency)
+                '15M': ('30d', '15m'),  # 15-minute data for 30 days (primary timeframe)
+                '1H': ('60d', '1h'),    # 1-hour data for trend confirmation
             }
             
             multi_data = {}

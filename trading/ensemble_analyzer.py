@@ -1,14 +1,24 @@
 import pandas as pd
 import numpy as np
 import talib
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
+from sklearn.linear_model import LogisticRegression
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, roc_curve
+import joblib
+import os
+from scipy import stats
+import warnings
+warnings.filterwarnings('ignore')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class EnsembleAnalyzer:
-    """Enhanced 5-Model Ensemble Trading System with Market Regime Detection"""
+    """Institutional-Grade 5-Model Ensemble with Quantitative Finance Methods"""
     
     def __init__(self):
         self.models = {
@@ -19,23 +29,68 @@ class EnsembleAnalyzer:
             'price_momentum': self._price_momentum
         }
         
-        # Multi-timeframe weights
+        # Intraday timeframe weights optimized for 5m-15m
         self.timeframe_weights = {
-            '1H': 0.30,
-            '4H': 0.50,
-            'Daily': 0.20
+            '5m': 0.40,
+            '15m': 0.35,
+            '1h': 0.25
         }
+        
+        # Model performance tracking for Sharpe/Sortino weighting (with error handling)
+        try:
+            self.model_performance = self._load_model_performance()
+        except Exception as e:
+            logger.warning(f"Error loading model performance, using defaults: {str(e)}")
+            self.model_performance = {
+                model_name: {'weight': 0.2, 'sharpe_ratio': 0.0, 'sortino_ratio': 0.0}
+                for model_name in self.models.keys()
+            }
+        
+        # Probability calibrator (with safe initialization)
+        self.calibrator = None
+        self.meta_classifier = None
+        try:
+            self.scaler = StandardScaler()
+        except Exception as e:
+            logger.warning(f"Error initializing scaler: {str(e)}")
+            self.scaler = None
+        
+        # Expected Value tracking
+        self.ev_tracker = {
+            'total_trades': 0,
+            'wins': 0,
+            'losses': 0,
+            'avg_win': 0.0,
+            'avg_loss': 0.0,
+            'win_rate': 0.0
+        }
+        
+        # Dynamic confidence thresholds based on ADX
+        self.confidence_thresholds = {
+            'strong_trend': {'adx_min': 40, 'threshold': 0.8},
+            'moderate_trend': {'adx_min': 25, 'threshold': 0.6},
+            'weak_trend': {'adx_min': 0, 'threshold': 0.4}
+        }
+        
+        # Load or initialize calibration models with error handling
+        try:
+            self._load_calibration_models()
+        except Exception as e:
+            logger.warning(f"Error loading calibration models, using defaults: {str(e)}")
+            self.calibrator = None
+            self.meta_classifier = None
     
     def analyze(self, data, multi_timeframe_data=None):
         """
-        Enhanced analyze with market regime detection and multi-timeframe analysis
+        Institutional-grade analysis with Sharpe weighting, probability calibration, 
+        EV filtering, and meta-labeling
         
         Args:
-            data (pandas.DataFrame): Primary OHLCV data (1H)
-            multi_timeframe_data (dict): Optional data for 4H and Daily timeframes
+            data (pandas.DataFrame): Primary OHLCV data (5m-15m optimized)
+            multi_timeframe_data (dict): Optional multi-timeframe data
         
         Returns:
-            dict: Enhanced analysis results with market regime and advanced metrics
+            dict: Advanced analysis with quantitative finance metrics
         """
         try:
             if data is None or data.empty or len(data) < 50:
@@ -56,35 +111,56 @@ class EnsembleAnalyzer:
             # Multi-timeframe analysis if data provided
             timeframe_consensus = self._analyze_multi_timeframe(data, multi_timeframe_data)
             
-            # Original 5-model analysis
+            # Sharpe/Sortino-weighted ensemble analysis
             votes = {}
             details = {}
+            model_weights = self._calculate_model_weights(data)
             
-            # Run each model
+            # Run each model with performance tracking
             for model_name, model_func in self.models.items():
                 try:
                     vote, detail = model_func(data)
                     votes[model_name] = vote
                     details[model_name] = detail
+                    # Update model performance for weight calculation
+                    self._update_model_performance(model_name, vote, data)
                 except Exception as e:
                     logger.warning(f"Error in {model_name}: {str(e)}")
                     votes[model_name] = 0
                     details[model_name] = {'error': str(e)}
             
-            # Calculate ensemble results
-            buy_votes = sum(1 for vote in votes.values() if vote == 1)
-            sell_votes = sum(1 for vote in votes.values() if vote == -1)
-            neutral_votes = sum(1 for vote in votes.values() if vote == 0)
+            # Calculate Sharpe-weighted ensemble results
+            weighted_signal = self._calculate_weighted_ensemble(votes, model_weights)
+            raw_probability = self._calculate_raw_probability(votes, model_weights)
             
-            total_votes = len(votes)
-            buy_probability = (buy_votes / total_votes) * 100
-            sell_probability = (sell_votes / total_votes) * 100
+            # Probability calibration
+            calibrated_probability = self._calibrate_probability(data, raw_probability)
             
-            # Apply market regime and timeframe filters
-            final_signal, confidence = self._determine_enhanced_signal(
-                buy_probability, sell_probability, market_regime, 
-                timeframe_consensus, price_action
+            # Expected Value calculation
+            ev_score = self._calculate_expected_value(calibrated_probability, market_regime)
+            
+            # Convert to buy/sell probabilities
+            if weighted_signal > 0:
+                buy_probability = calibrated_probability * 100
+                sell_probability = (1 - calibrated_probability) * 100
+            else:
+                buy_probability = (1 - calibrated_probability) * 100
+                sell_probability = calibrated_probability * 100
+            
+            # Dynamic confidence thresholds based on ADX
+            dynamic_threshold = self._get_dynamic_threshold(market_regime)
+            
+            # Meta-labeling decision
+            meta_decision = self._meta_labeling_decision(data, calibrated_probability, market_regime)
+            
+            # Apply regime-aware signal determination with EV filter
+            final_signal, confidence = self._determine_institutional_signal(
+                weighted_signal, calibrated_probability, market_regime, 
+                timeframe_consensus, price_action, ev_score, dynamic_threshold, meta_decision
             )
+            
+            # Fractional Kelly position sizing
+            kelly_fraction = self._calculate_kelly_fraction(calibrated_probability, ev_score)
             
             return {
                 'final_signal': final_signal,
@@ -93,15 +169,22 @@ class EnsembleAnalyzer:
                 'sell_probability': round(sell_probability, 1),
                 'model_votes': votes,
                 'model_details': details,
+                'model_weights': model_weights,
                 'vote_counts': {
-                    'buy': buy_votes,
-                    'sell': sell_votes,
-                    'neutral': neutral_votes
+                    'buy': sum(1 for vote in votes.values() if vote == 1),
+                    'sell': sum(1 for vote in votes.values() if vote == -1),
+                    'neutral': sum(1 for vote in votes.values() if vote == 0)
                 },
                 'market_regime': market_regime,
                 'atr_value': atr_value,
                 'price_action': price_action,
-                'timeframe_consensus': timeframe_consensus
+                'timeframe_consensus': timeframe_consensus,
+                'weighted_signal': weighted_signal,
+                'calibrated_probability': calibrated_probability,
+                'expected_value': ev_score,
+                'kelly_fraction': kelly_fraction,
+                'dynamic_threshold': dynamic_threshold,
+                'meta_decision': meta_decision
             }
             
         except Exception as e:
@@ -465,6 +548,377 @@ class EnsembleAnalyzer:
             logger.warning(f"Error in enhanced signal determination: {str(e)}")
             return 'HOLD', {'percentage': 0, 'status': 'ERROR', 'factors': {}}
     
+    def _load_model_performance(self):
+        """Load or initialize model performance tracking for Sharpe/Sortino weighting"""
+        try:
+            if os.path.exists('model_performance.json'):
+                import json
+                with open('model_performance.json', 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.warning(f"Error loading model performance: {str(e)}")
+        
+        # Initialize performance tracking for each model
+        return {
+            model_name: {
+                'returns': [],
+                'sharpe_ratio': 0.0,
+                'sortino_ratio': 0.0,
+                'weight': 0.2,  # Equal weight initially
+                'total_trades': 0,
+                'winning_trades': 0
+            } for model_name in self.models.keys()
+        }
+    
+    def _load_calibration_models(self):
+        """Load or initialize probability calibration models"""
+        try:
+            if os.path.exists('calibration_model.joblib'):
+                self.calibrator = joblib.load('calibration_model.joblib')
+            if os.path.exists('meta_classifier.joblib'):
+                self.meta_classifier = joblib.load('meta_classifier.joblib')
+            if os.path.exists('scaler.joblib'):
+                self.scaler = joblib.load('scaler.joblib')
+                
+            # Load EV tracker
+            if os.path.exists('ev_tracker.json'):
+                import json
+                with open('ev_tracker.json', 'r') as f:
+                    self.ev_tracker = json.load(f)
+        except Exception as e:
+            logger.warning(f"Error loading calibration models: {str(e)}")
+    
+    def _calculate_model_weights(self, data):
+        """Calculate Sharpe/Sortino-based weights for each model"""
+        try:
+            weights = {}
+            total_weight = 0
+            
+            for model_name, performance in self.model_performance.items():
+                # Calculate Sharpe ratio weight
+                sharpe = performance.get('sharpe_ratio', 0.0)
+                sortino = performance.get('sortino_ratio', 0.0)
+                
+                # Combine Sharpe and Sortino with preference for Sortino
+                combined_score = 0.4 * sharpe + 0.6 * sortino
+                
+                # Convert to positive weight (add 1 to handle negative ratios)
+                weight = max(0.1, 1 + combined_score)  # Minimum weight of 0.1
+                weights[model_name] = weight
+                total_weight += weight
+            
+            # Normalize weights to sum to 1
+            if total_weight > 0:
+                for model_name in weights:
+                    weights[model_name] /= total_weight
+            else:
+                # Equal weights if no performance data
+                equal_weight = 1.0 / len(self.models)
+                weights = {model_name: equal_weight for model_name in self.models.keys()}
+            
+            return weights
+        except Exception as e:
+            logger.warning(f"Error calculating model weights: {str(e)}")
+            equal_weight = 1.0 / len(self.models)
+            return {model_name: equal_weight for model_name in self.models.keys()}
+    
+    def _update_model_performance(self, model_name, vote, data):
+        """Update model performance for Sharpe/Sortino calculation"""
+        try:
+            if model_name not in self.model_performance:
+                return
+                
+            # Simulate return based on vote and actual price movement
+            if len(data) >= 2:
+                current_price = data['Close'].iloc[-1]
+                prev_price = data['Close'].iloc[-2]
+                actual_return = (current_price - prev_price) / prev_price
+                
+                # Calculate model return based on vote alignment
+                if vote == 1:  # Buy signal
+                    model_return = actual_return
+                elif vote == -1:  # Sell signal
+                    model_return = -actual_return
+                else:  # Hold signal
+                    model_return = 0
+                
+                # Update returns list (keep last 100 returns for rolling calculation)
+                returns = self.model_performance[model_name]['returns']
+                returns.append(model_return)
+                if len(returns) > 100:
+                    returns.pop(0)
+                
+                # Calculate Sharpe and Sortino ratios
+                if len(returns) >= 10:
+                    returns_array = np.array(returns)
+                    mean_return = np.mean(returns_array)
+                    std_return = np.std(returns_array)
+                    
+                    # Sharpe ratio
+                    if std_return > 0:
+                        self.model_performance[model_name]['sharpe_ratio'] = mean_return / std_return
+                    
+                    # Sortino ratio (downside deviation)
+                    negative_returns = returns_array[returns_array < 0]
+                    if len(negative_returns) > 0:
+                        downside_deviation = np.std(negative_returns)
+                        if downside_deviation > 0:
+                            self.model_performance[model_name]['sortino_ratio'] = mean_return / downside_deviation
+                
+                # Update trade counts
+                self.model_performance[model_name]['total_trades'] += 1
+                if model_return > 0:
+                    self.model_performance[model_name]['winning_trades'] += 1
+                    
+        except Exception as e:
+            logger.warning(f"Error updating model performance for {model_name}: {str(e)}")
+    
+    def _calculate_weighted_ensemble(self, votes, weights):
+        """Calculate weighted ensemble signal using Sharpe/Sortino weights"""
+        try:
+            weighted_signal = 0
+            for model_name, vote in votes.items():
+                weight = weights.get(model_name, 0.2)
+                weighted_signal += vote * weight
+            return weighted_signal
+        except Exception as e:
+            logger.warning(f"Error calculating weighted ensemble: {str(e)}")
+            return 0
+    
+    def _calculate_raw_probability(self, votes, weights):
+        """Calculate raw probability before calibration"""
+        try:
+            weighted_signal = self._calculate_weighted_ensemble(votes, weights)
+            # Convert weighted signal to probability using sigmoid-like function
+            probability = 1 / (1 + np.exp(-2 * weighted_signal))
+            return probability
+        except Exception as e:
+            logger.warning(f"Error calculating raw probability: {str(e)}")
+            return 0.5
+    
+    def _calibrate_probability(self, data, raw_probability):
+        """Calibrate probability using trained logistic regression"""
+        try:
+            if self.calibrator is None:
+                # If no calibrator trained yet, return raw probability
+                return raw_probability
+            
+            # Extract features for calibration
+            features = self._extract_calibration_features(data)
+            if features is not None:
+                features_scaled = self.scaler.transform([features])
+                calibrated_prob = self.calibrator.predict_proba(features_scaled)[0][1]
+                return calibrated_prob
+            
+            return raw_probability
+        except Exception as e:
+            logger.warning(f"Error calibrating probability: {str(e)}")
+            return raw_probability
+    
+    def _extract_calibration_features(self, data):
+        """Extract features for probability calibration"""
+        try:
+            if len(data) < 20:
+                return None
+                
+            close_prices = data['Close'].values
+            high_prices = data['High'].values
+            low_prices = data['Low'].values
+            
+            # Technical indicators as features
+            rsi = talib.RSI(close_prices, timeperiod=14)[-1]
+            macd, macd_signal, _ = talib.MACD(close_prices)
+            macd_diff = macd[-1] - macd_signal[-1]
+            atr = talib.ATR(high_prices, low_prices, close_prices, timeperiod=14)[-1]
+            adx = talib.ADX(high_prices, low_prices, close_prices, timeperiod=14)[-1]
+            
+            # Volume-based feature (if available)
+            volume_ratio = 1.0
+            if 'Volume' in data.columns:
+                recent_volume = data['Volume'].tail(5).mean()
+                avg_volume = data['Volume'].tail(20).mean()
+                volume_ratio = recent_volume / avg_volume if avg_volume > 0 else 1.0
+            
+            features = [rsi, macd_diff, atr, adx, volume_ratio]
+            return features
+        except Exception as e:
+            logger.warning(f"Error extracting calibration features: {str(e)}")
+            return None
+    
+    def _calculate_expected_value(self, probability, market_regime):
+        """Calculate Expected Value: EV = (p * avg_win) - ((1-p) * avg_loss)"""
+        try:
+            # Get historical performance data
+            avg_win = self.ev_tracker.get('avg_win', 20)  # Default 20 pips
+            avg_loss = self.ev_tracker.get('avg_loss', 15)  # Default 15 pips
+            
+            # Adjust for market regime
+            if market_regime.get('regime') == 'TRENDING':
+                avg_win *= 1.2  # Higher wins in trending markets
+            elif market_regime.get('regime') == 'RANGING':
+                avg_win *= 0.8  # Lower wins in ranging markets
+                avg_loss *= 1.1  # Higher losses in ranging markets
+            
+            # Calculate EV
+            ev = (probability * avg_win) - ((1 - probability) * avg_loss)
+            return ev
+        except Exception as e:
+            logger.warning(f"Error calculating expected value: {str(e)}")
+            return 0
+    
+    def _get_dynamic_threshold(self, market_regime):
+        """Get dynamic confidence threshold based on ADX regime"""
+        try:
+            adx = market_regime.get('adx', 0)
+            
+            if adx >= 40:
+                return self.confidence_thresholds['strong_trend']['threshold']
+            elif adx >= 25:
+                return self.confidence_thresholds['moderate_trend']['threshold']
+            else:
+                return self.confidence_thresholds['weak_trend']['threshold']
+        except Exception as e:
+            logger.warning(f"Error getting dynamic threshold: {str(e)}")
+            return 0.6  # Default threshold
+    
+    def _meta_labeling_decision(self, data, probability, market_regime):
+        """Meta-labeling: decide whether to act on the signal"""
+        try:
+            if self.meta_classifier is None:
+                # If no meta-classifier trained, use simple heuristics
+                if probability > 0.6 and market_regime.get('adx', 0) > 20:
+                    return 1  # Act on signal
+                else:
+                    return 0  # Don't act
+            
+            # Extract meta-features
+            meta_features = self._extract_meta_features(data, probability, market_regime)
+            if meta_features is not None:
+                meta_features_scaled = self.scaler.transform([meta_features])
+                decision = self.meta_classifier.predict(meta_features_scaled)[0]
+                return decision
+            
+            return 0
+        except Exception as e:
+            logger.warning(f"Error in meta-labeling decision: {str(e)}")
+            return 0
+    
+    def _extract_meta_features(self, data, probability, market_regime):
+        """Extract features for meta-labeling"""
+        try:
+            # Meta-features: probability, market regime, volatility, time of day
+            adx = market_regime.get('adx', 0)
+            band_width = market_regime.get('band_width', 0)
+            
+            # Time-based feature (hour of day effect)
+            current_hour = datetime.now().hour
+            
+            # Volatility feature
+            if len(data) >= 20:
+                returns = data['Close'].pct_change().tail(20)
+                volatility = returns.std()
+            else:
+                volatility = 0
+            
+            meta_features = [probability, adx, band_width, current_hour, volatility]
+            return meta_features
+        except Exception as e:
+            logger.warning(f"Error extracting meta-features: {str(e)}")
+            return None
+    
+    def _calculate_kelly_fraction(self, probability, expected_value):
+        """Calculate fractional Kelly sizing: f* = (b*p - (1-p))/b"""
+        try:
+            # Get win/loss ratio from tracker
+            avg_win = self.ev_tracker.get('avg_win', 20)
+            avg_loss = self.ev_tracker.get('avg_loss', 15)
+            
+            if avg_loss > 0:
+                b = avg_win / avg_loss  # Win/loss ratio
+                kelly_fraction = (b * probability - (1 - probability)) / b
+                
+                # Use fractional Kelly (25% of full Kelly) for safety
+                fractional_kelly = 0.25 * max(0, kelly_fraction)
+                
+                # Cap at 2% for risk management
+                return min(fractional_kelly, 0.02)
+            
+            return 0.01  # Default 1% position size
+        except Exception as e:
+            logger.warning(f"Error calculating Kelly fraction: {str(e)}")
+            return 0.01
+    
+    def _determine_institutional_signal(self, weighted_signal, calibrated_probability, 
+                                      market_regime, timeframe_consensus, price_action, 
+                                      expected_value, dynamic_threshold, meta_decision):
+        """Institutional-grade signal determination with all filters"""
+        try:
+            # Step 1: Check probability against dynamic threshold
+            if calibrated_probability < dynamic_threshold:
+                return 'HOLD', {'percentage': calibrated_probability * 100, 'status': 'BELOW_THRESHOLD'}
+            
+            # Step 2: Check Expected Value filter
+            if expected_value <= 0:
+                return 'HOLD', {'percentage': calibrated_probability * 100, 'status': 'NEGATIVE_EV'}
+            
+            # Step 3: Check meta-labeling decision
+            if meta_decision == 0:
+                return 'HOLD', {'percentage': calibrated_probability * 100, 'status': 'META_REJECT'}
+            
+            # Step 4: Determine signal direction
+            if weighted_signal > 0.1:
+                signal = 'BUY'
+            elif weighted_signal < -0.1:
+                signal = 'SELL'
+            else:
+                signal = 'HOLD'
+            
+            # Step 5: Calculate final confidence
+            base_confidence = calibrated_probability * 100
+            
+            # Boost confidence for strong market regimes
+            if market_regime.get('adx', 0) > 30:
+                base_confidence += 10
+            
+            # Boost for timeframe consensus
+            if timeframe_consensus.get('consensus') == signal:
+                base_confidence += 15
+            
+            # Reduce for price action risks
+            if price_action.get('near_key_level'):
+                base_confidence -= 10
+            
+            # Cap confidence
+            final_confidence = min(100, max(0, base_confidence))
+            
+            # Determine status
+            if final_confidence >= 85:
+                status = 'INSTITUTIONAL_HIGH'
+            elif final_confidence >= 70:
+                status = 'INSTITUTIONAL_MEDIUM'
+            elif final_confidence >= dynamic_threshold * 100:
+                status = 'INSTITUTIONAL_LOW'
+            else:
+                status = 'INSTITUTIONAL_WEAK'
+                signal = 'HOLD'
+            
+            return signal, {
+                'percentage': round(final_confidence, 1),
+                'status': status,
+                'expected_value': expected_value,
+                'dynamic_threshold': dynamic_threshold,
+                'meta_decision': meta_decision,
+                'filters_passed': {
+                    'probability_threshold': calibrated_probability >= dynamic_threshold,
+                    'positive_ev': expected_value > 0,
+                    'meta_approval': meta_decision == 1
+                }
+            }
+            
+        except Exception as e:
+            logger.warning(f"Error in institutional signal determination: {str(e)}")
+            return 'HOLD', {'percentage': 0, 'status': 'ERROR'}
+
     def _default_analysis(self):
         """Return default analysis when data is insufficient"""
         return {
