@@ -16,10 +16,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Flask Trading System"
+args = "Forex Trading Dashboard"
 
 [[workflows.workflow]]
-name = "Flask Trading System"
+name = "Forex Trading Dashboard"
 author = "agent"
 
 [[workflows.workflow.tasks]]
@@ -33,10 +33,6 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 33249
-externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"
