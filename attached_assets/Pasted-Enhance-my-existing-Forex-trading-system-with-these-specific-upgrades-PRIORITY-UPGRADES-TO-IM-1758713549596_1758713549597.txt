@@ -1,0 +1,64 @@
+Enhance my existing Forex trading system with these specific upgrades:
+
+## PRIORITY UPGRADES TO IMPLEMENT:
+
+### 1. ADD MARKET REGIME DETECTION
+- Implement ADX indicator to detect trending vs ranging markets
+- Add Bollinger Band Width analysis for volatility measurement
+- Classify market as: TRENDING (ADX > 25), RANGING (low volatility), or VOLATILE
+- Display current regime on dashboard next to signals
+
+### 2. DYNAMIC ATR-BASED STOP-LOSS/TAKE-PROFIT
+- Replace fixed 20/40 pip SL/TP with ATR-based calculations
+- Use 1.5x ATR for stop-loss, 3.0x ATR for take-profit (2:1 ratio)
+- Show current ATR value and dynamic levels on dashboard
+- Formula: SL = entry ± (ATR × 1.5), TP = entry ± (ATR × 3.0)
+
+### 3. MULTI-TIMEFRAME CONFIRMATION
+- Analyze 1H, 4H, and Daily timeframes for each signal
+- Apply weights: 1H (30%), 4H (50%), Daily (20%)
+- Require consensus across timeframes for higher confidence
+- Display timeframe agreement on dashboard
+
+### 4. PRICE ACTION FILTERS
+- Calculate support/resistance levels (20-period high/low)
+- Measure distance to nearest support/resistance
+- Avoid trades within 0.2% of key levels
+- Detect Doji candlestick patterns for market indecision
+
+### 5. PERFORMANCE TRACKING DASHBOARD
+- Add win rate tracking for the strategy
+- Show profit factor and total trades
+- Display current winning/losing streak
+- Track largest win/loss statistics
+
+## ENHANCED DASHBOARD DISPLAY FORMAT:
+🎯 EUR/USD: BUY (CONFIRMED)
+📊 Confidence: 85% (5/5 models + 4H bullish)
+🏛️ Market Regime: TRENDING (ADX: 34)
+💰 Dynamic SL: 1.08320 | TP: 1.09160 (ATR: 0.00080)
+⚡ Risk: 1.5% | Position: 12 micro lots
+📈 Performance: 68% win rate | Streak: +3
+🎯 Price Action: Clear path to resistance
+
+text
+
+## TECHNICAL REQUIREMENTS:
+- Maintain existing 5-model ensemble system
+- Keep current web interface layout
+- Add new metrics to dashboard without clutter
+- Ensure mobile responsiveness
+- Preserve existing risk management features
+
+## INTEGRATION SPECIFICS:
+- Add new calculations to existing indicator functions
+- Extend signal generation with regime awareness
+- Enhance position sizing with ATR-based risk
+- Update HTML template to display new metrics
+
+## ERROR HANDLING:
+- Handle missing data gracefully
+- Provide fallback to fixed SL/TP if ATR unavailable
+- Maintain system stability during market closures
+
+Deliver complete working code with all enhancements integrated into the existing system.

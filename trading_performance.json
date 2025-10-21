@@ -1,0 +1,14 @@
+{
+  "trades": [
+    {
+      "timestamp": "2025-10-21T17:01:55.691448",
+      "pair": "USDCHF",
+      "signal": "BUY",
+      "confidence": {
+        "percentage": 59.0,
+        "status": "INSTITUTIONAL_LOW",
+        "expected_value": 9.321137462113303,
+        "dynamic_threshold": 0.5,
+        "meta_decision": 1,
+        "filters_passed": {
+          "probability_threshold": 
