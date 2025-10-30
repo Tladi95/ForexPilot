@@ -46,7 +46,7 @@ Preferred communication style: Simple, everyday language.
 
 ## External Dependencies
 
-### Data Sources
+ Data Sources
 - **yfinance**: Primary data source for real-time forex prices and historical data
 - **Yahoo Finance API**: Underlying data provider for currency pair information
 
